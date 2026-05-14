@@ -1,0 +1,17 @@
+{
+  "name": "repo-warden",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "adk run warden.ts"
+  },
+  "dependencies": {
+    "@google/adk": "^1.14.0",
+    "axios": "1.14.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.12.0"
+  }
+}
