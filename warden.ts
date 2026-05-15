@@ -10,29 +10,47 @@ import { Content } from '@google/genai';
 import { z } from 'zod';
 import * as readline from 'readline';
 
+// --- TOOLS SECTION ---
 
-// 1. Define the tool correctly
+// Tool 1: GitHub Package Data
 const githubTool = new FunctionTool({
     name: "fetch_repo_data",
     description: "Fetches package.json from a GitHub URL for auditing.",
     parameters: z.object({
-        url: z.string().describe("The GitHub repository URL to fetch package.json from"),
+        url: z.string().describe("The GitHub repository URL"),
+    }),
+   execute: async ({ url }) => {
+    const module = await import('./src/tools/github.js');
+    return module.fetchRepoData(url);
+},
+});
+
+// Tool 2: README Data
+const readmeTool = new FunctionTool({
+    name: "fetch_readme",
+    description: "Fetches the README.md to understand the project's purpose.",
+    parameters: z.object({
+        url: z.string().describe("The GitHub repository URL"),
     }),
     execute: async ({ url }) => {
-        const { fetchRepoData } = await import('./src/tools/github.js');
-        return fetchRepoData(url); // pass url as plain string, not { url }
-    },
+    const module = await import('./src/tools/readme.js');
+    return module.fetchReadme(url);
+},
 });
 
-// 2. Define the agent correctly
+// --- AGENT SECTION ---
+
 export const rootAgent = new LlmAgent({
-    name: "github_warden",           // no spaces
-    model: "gemini-2.5-flash",       // plain string, not new Gemini({})
-    instruction: "You are an expert security auditor. Use tools to analyze repos.",
-    tools: [githubTool],
+    name: "github_warden",
+    // Change "gemini-3.5-flash" to "gemini-1.5-flash" 
+    // (In 2026, 1.5 remains the standard stable endpoint for tool-calling)
+    model: "gemini-2.5-flash", 
+    instruction: "You are a master auditor. Use tools to analyze repos.",
+    tools: [githubTool, readmeTool],
 });
 
-// 3. Set up Runner and Session
+// --- RUNNER & SESSION SECTION ---
+
 const sessionService = new InMemorySessionService();
 const runner = new Runner({
     agent: rootAgent,
@@ -44,14 +62,15 @@ const userId = 'user1';
 const sessionId = 'session1';
 await sessionService.createSession({ appName: 'github_warden', userId, sessionId });
 
-// 4. Terminal chat loop
+// --- INTERFACE SECTION ---
+
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
 
-console.log("--- GitHub Warden: System Online ---");
-console.log("Type your request (e.g., 'Audit https://github.com/user/repo') or 'exit' to quit");
+console.log("--- GitHub Warden: System Online (Multi-Tool Mode) ---");
+console.log("Type your request or 'exit' to quit");
 
 const askQuestion = () => {
     rl.question('\nYou > ', async (input) => {
@@ -61,16 +80,15 @@ const askQuestion = () => {
         }
 
         const userMessage: Content = { parts: [{ text: input }], role: 'user' };
-
         process.stdout.write('\nAgent > ');
+
         for await (const event of runner.runAsync({ userId, sessionId, newMessage: userMessage })) {
             if (isFinalResponse(event) && event.content?.parts?.length) {
                 const text = event.content.parts.map(p => p.text ?? '').join('');
                 console.log(text);
             }
         }
-
-        askQuestion(); // loop back for next input
+        askQuestion();
     });
 };
 

@@ -3,9 +3,8 @@ name: repo-auditor
 description: Audits code for 2021-2024 tech debt and suggests 2026 updates.
 ---
 
-# Instructions
-
-1. Use the 'fetchRepoData' tool when a user provides a GitHub link.
-2. Analyze the 'dependencies' section of the JSON.
-3. For any package released before 2025, suggest a 2026 modern alternative.
-4. Output your findings in a structured Markdown table.
+instruction: `You MUST use 'fetch_readme' AND 'fetch_repo_data' for every URL provided. 
+Step 1: Get the README. 
+Step 2: Get the package.json. 
+Step 3: Provide a modernization table comparing the two. 
+Do not respond until you have used both tools.`,
